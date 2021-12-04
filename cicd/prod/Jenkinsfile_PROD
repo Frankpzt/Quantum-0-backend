@@ -1,0 +1,20 @@
+pipeline { 
+    agent any 
+    environment {
+        PROJECT = "quantum-backend-prod"
+    }
+    stages {
+        
+        stage('Production Deploy') {
+            steps {
+                echo "${PROJECT}"
+                dir('./cicd/prod') {
+                    sh '''
+                    ecs deploy ECS-cluster-PROD ECS-service-PROD --image ECS-container-PROD devopswakaka/quantumbackend:latest --timeout 900
+                    '''
+                }
+                
+            }
+        }
+    }
+}

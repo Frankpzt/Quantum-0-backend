@@ -1,0 +1,125 @@
+pipeline { 
+    agent any 
+    tools {
+        terraform 'terraform'
+        // ansible-playbook 'ansible-playbook'
+    }
+    environment {
+        PROJECT = "quantum"
+    }
+    stages {
+        
+        stage('Build') {
+            steps{
+                
+                echo 'Building...'
+                
+                script{
+                    def buildEnv = docker.build "quantumbackend:${currentBuild.number}"
+
+                
+                    echo "quantumbackend:${currentBuild.number}"
+                    echo 'unit testing...'
+                
+                    buildEnv.inside {
+                        sh "echo '# ${currentBuild.number} Build testing result: \n' > test_result.txt"
+                        // sh "npm run test -- --coverage --watchAll=false >> test_result.txt"
+                    }
+                }
+            }   
+        }
+    
+
+        stage('Integration Test'){
+            steps {
+                echo 'Integration test'
+            }
+        }
+        
+        stage('Push docker image'){
+            steps {
+                echo 'make UAT docker image'
+                script{
+                    def image = docker.build("devopswakaka/quantumbackend:${currentBuild.number}","--build-arg mongodb='mongodb+srv://p3_prod_admin:p3_prod_admin@quantum-prod.avs4i.mongodb.net/quantum' ." )
+                    
+                    echo 'push docker image to docker hub'
+
+                    docker.withRegistry('https://registry-1.docker.io/v2/', 'docker-hub-credentials'){
+                        image.push()
+                        image.push 'latest'
+                    }
+                    
+                }
+                
+                
+                
+            }
+        }
+        
+        stage('aws EC2 config') {
+            environment {
+                access_key = credentials('access_key_quantum')
+                secret_key = credentials('secret_key_quantum')
+                // app_host = sh('cat ./UAT/output.txt | grep -o -E "app_instance_ip\\s\\=\\s(.*)" | awk "{print $(3)}"')
+                app_host = "54.252.210.28"
+                // mongodb = sh('cat ./UAT/output.txt | grep -o -E "connection_strings\\s\\=\\s(.*)" | awk "{print $(3)}"')
+                mongodb = "mongodb+srv://p3-uat.vqnif.mongodb.net"
+            }
+            steps {
+
+                // dir('./docker_compose/web_nginx'){
+                //     script{
+                //         def nginx = docker.build "devopswakaka/nginx:${currentBuild.number}"
+
+                //         docker.withRegistry('https://registry-1.docker.io/v2/', 'docker-hub-credentials'){
+                //             nginx.push()
+                //             nginx.push 'latest'
+                //         }
+                //     }
+                // }
+                
+                echo 'configure EC2'
+
+                withEnv(['AWS_ACCESS_KEY=$access_key', 'AWS_SECRET_KEY=$secret_key', 'ANSIBLE_HOST_KEY_CHECKING=False']){
+                    dir('./ansible'){
+                        script{
+                            sh 'ansible-galaxy install geerlingguy.docker && ansible-galaxy install geerlingguy.pip'
+                            sh 'eval $(ssh-agent) && ssh-add -k /root/.ssh/p3_uat.pem'
+                        }
+
+                            // sh 'ansible-playbook ./site.yaml -i ./inventory.aws_ec2.yaml -e "MONGO=$mongodb appHost=$app_host AWS_ACCESS_KEY=$access_key AWS_SECRET_KEY=$secret_key"'
+                        // ansiblePlaybook extras: '-e "aws_access_key=$access_key aws_secret_key=$secret_key appHost=$app_host MONGO=$mongodb private_key_file=~/.ssh/p3_uat.pem ', inventory: './inventory.aws_ec2.yaml', playbook: './site.yaml'
+                        }
+                        
+                }
+            }
+                
+                
+        }
+        
+        stage('Deploy') {
+            steps {
+                sh 'echo deploy'
+                script{
+                    // sh 'ssh-keyscan -H 13.211.104.116 >> ~/.ssh/known_hosts'
+                    sh '''
+                    scp -i /root/.ssh/p3_uat.pem package.json ubuntu@13.211.104.116:~/
+                    scp -i /root/.ssh/p3_uat.pem package-lock.json ubuntu@13.211.104.116:~/
+                    scp -i /root/.ssh/p3_uat.pem -r ./src ubuntu@13.211.104.116:~/
+                    '''
+                }
+                dir('./cicd/staging') {
+                   // sh 'ssh-keyscan -H 3.25.193.90 >> ~/.ssh/known_hosts' 
+                    sh '''
+                    scp -i /root/.ssh/p3_uat.pem ecosystem.config.js ubuntu@13.211.104.116:~/
+                    ssh ubuntu@13.211.104.116 -i /root/.ssh/p3_uat.pem "bash -s" < deploy.sh
+                    ssh ubuntu@3.25.193.90 -i /root/.ssh/p3_uat.pem "bash -s" < nginx.sh
+                    scp -i /root/.ssh/p3_uat.pem ../../docker_compose/web_nginx/nginx.conf ubuntu@3.25.193.90:/etc/nginx
+                    ssh ubuntu@3.25.193.90 -i /root/.ssh/p3_uat.pem "sudo service nginx reload && sudo service nginx restart"
+                    '''
+                }
+                
+            }
+        }
+    }
+}

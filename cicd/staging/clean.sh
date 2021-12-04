@@ -1,0 +1,1 @@
+docker images -qa | xargs docker rmi -f

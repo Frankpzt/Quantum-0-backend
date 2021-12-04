@@ -1,0 +1,41 @@
+version: '3'
+services:
+  web-nginx:
+    image: nginx
+    build: ./web_nginx
+    restart: always
+    ports:
+    - "8000:80"
+    
+  app-node:
+    image: quantum_backend:0.1
+    build: ../
+    restart: always
+    ports:
+      - "4000:4000"
+      - "8080:8080"
+    networks:
+      - webapp-network
+    depends_on:
+      - database
+    environment:
+      - CONNECTION_STRING=mongodb://database:27017/quantum
+      # - PORT=4000
+      # - JWT_KEY=secret
+    # deploy:
+    #   mode: replicated
+    #   replicas: 2
+
+  database:
+    image: mongo
+    build: ./db_mongo
+    restart: always
+    ports:
+    - "27017:27017"
+    networks:
+      - webapp-network
+
+networks:
+  webapp-network:
+    driver: bridge
+# docker compose up

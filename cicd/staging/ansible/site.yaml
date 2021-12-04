@@ -1,0 +1,60 @@
+---
+- hosts: all
+  become: yes
+  become_user: root
+  user: ubuntu
+  tasks:
+    - name: update apt
+      command: sudo apt-get update -y
+  vars:
+    ansible_ssh_private_key_file: /root/.ssh/p3_uat.pem
+    pip_install_packages:
+      - name: docker
+  roles:
+    - geerlingguy.docker
+    - geerlingguy.pip
+
+# - hosts: all
+#   become: yes
+#   become_user: root
+#   user: ubuntu
+#   tasks:  
+#     - name: remove docker images and contianer
+#       ansible.builtin.shell:  "sudo docker ps -q | sudo xargs docker kill && sudo docker ps -qa | sudo xargs docker rm && sudo docker images -qa | sudo xargs docker rmi -f"
+
+# - hosts: tag_app
+#   become: yes
+#   user: ubuntu
+#   vars:
+#     ansible_ssh_private_key_file: /root/.ssh/p3_uat.pem
+#   tasks:
+#     - name: Start app container
+#       docker_container:
+#         name: quantum
+#         image: devopswakaka/quantumbackend:latest
+#         state: started
+#         ports:
+#           - "4000:4000"
+#           - "80:80"
+#         env:
+#           CONNECTION_STRING: "{{MONGO}}"
+#           PORT: "4000"
+#           JWT_KEY: "secret"
+
+
+# - hosts: tag_nginx
+#   become: yes
+#   user: ubuntu
+#   vars:
+#     ansible_ssh_private_key_file: /root/.ssh/p3_uat.pem
+#   tasks:
+#     - name: Start nginx container
+#       docker_container:
+#         name: web
+#         image: devopswakaka/nginx:latest
+#         state: started
+#         ports:
+#           - "80:80" # traffic from internet by this port
+#           - "4000:4000" # transfer from web ec2 to app ec2 by this port
+#         env:
+#           APP_HOST: "{{appHost}}"

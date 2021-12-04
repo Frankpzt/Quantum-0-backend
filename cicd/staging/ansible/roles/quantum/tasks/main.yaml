@@ -1,0 +1,22 @@
+---
+# - name: clean up docker
+#     raw: docker ps -q | xargs docker kill
+#     - "docker ps -qa | xargs docker rm"
+#     - "docker images -qa | xargs docker rmi -f"
+
+- name: Start app container
+  docker_container:
+    name: quantum
+    image: devopswakaka/quantumbackend:latest
+    state: started
+    ports:
+      - "4000:4000"
+      - "80:80"
+    env:
+      - CONNECTION_STRING={{MONGO}}
+      - PORT=4000
+      - JWT_KEY=secret
+
+    restart:
+      - yes
+    

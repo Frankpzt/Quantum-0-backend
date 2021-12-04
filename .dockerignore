@@ -1,0 +1,15 @@
+#Ignore node_modules
+node_modules
+
+#Ignore debug log
+
+npm-debug.log
+
+#docker_compose
+docker_compose
+.env
+cicd/
+README.md
+Jenkinsfile
+
+terraform.sh

@@ -1,0 +1,13 @@
+---
+- name: Install Docker
+  include_role:
+    name: geerlingguy.docker
+
+- name: Install pip
+  include_role:
+    name: geerlingguy.pip
+
+# - name: clean up docker
+#     raw: docker ps -q | xargs docker kill
+    # raw: docker ps -qa | xargs docker rm
+    # raw: docker images -qa | xargs docker rmi -f

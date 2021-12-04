@@ -1,0 +1,19 @@
+---
+# - name: clean up docker
+#     raw: 
+#     - "docker ps -q | xargs docker kill"
+#     - "docker ps -qa | xargs docker rm"
+#     - "docker images -qa | xargs docker rmi -f"
+
+- name: Start nginx container
+  docker_container:
+    name: web
+    image: devopswakaka/nginx
+    state: started
+    ports:
+      - "80:80" # traffic from internet by this port
+      - "4000:4000" # transfer from web ec2 to app ec2 by this port
+    restart:
+      - yes
+    env:
+      - APP_HOST={{appHost}}
